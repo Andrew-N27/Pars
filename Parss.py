@@ -3,6 +3,7 @@ import csv
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
+from requests.api import head
 
 # url = 'https://quotes.toscrape.com/'
 # response = requests.get(url)
@@ -10,63 +11,83 @@ from bs4 import BeautifulSoup
 
 # print(soup)
 
-def get_html(url):
-    response = requests.get(url)
-    return response.text
+
+URL = 'https://www.marvel.com/characters'
+HEADERS = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36'
+    }
+
+def get_articles_urls():
+    with requests.Session() as session:
+        session = requests.Session()
+
+    response = session.get(url = URL, headers = HEADERS)
+    #response = requests.get(URL, headers = HEADERS)
+    with open('index.html', 'w', encoding='utf-8') as file:
+        file.write(response.text)
+
+def parse():
+    URL = 'https://www.marvel.com/characters'
+    HEADERS = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36'
+    }
+    
+    response = requests.get(URL, headers = HEADERS)
+    soup = BeautifulSoup(response.content, 'lxml')
+    items = soup.findAll('div', class_ = 'mvl-card mvl-card--explore')
+    #items = items.findAll() #mvl-card mvl-card--explore
+    comps = []
+    cout = 0
+    for item in items:
+        comps.append({                      # card-body__headline
+            'name': item.find('p', class_ = 'card-body__headline').get_text(strip = True),
+            'link': 'https://www.marvel.com' + item.find('a', class_ = 'explore__link').get('href')
+        })
+        cout += 1
+    print(cout)
+    cout = 0
+    for comp in comps:
+        print(comp['name'], '-->' , '\t', comp['link'])
+        cout += 1
+    
+    print(cout)
+
+def get_text_from_html():
+    with open('index.html', encoding='utf-8') as file:
+        src = file.read()
+    
+    soup = BeautifulSoup(src, 'lxml')
+
+    items = soup.findAll('p', class_ = 'card-body__headline')#'div', class_ = 'mvl-card mvl-card--explore'
+    #items = items.findAll() #mvl-card mvl-card--explore
+    comps = []
+    cout = 0
+    for item in items:
+        comps.append({                      # card-body__headline
+            'name': item.text.strip()
+            #'name': item.find('p', class_ = 'card-body__headline').get_text(strip = True),
+            #'link': 'https://www.marvel.com' + item.find('a', class_ = 'explore__link').get('href')
+        })
+        cout += 1
+    print(cout)
+    cout = 0
+    for comp in comps:
+        print(comp['name'])
+        cout += 1
+    
+    print(cout)
+
+get_text_from_html()
+
+#parse()
+
+#get_articles_urls()
 
 
-def get_all_links(html):
-    soup = BeautifulSoup(html, 'lxml')
-    tds = soup.find('table', id='currencies-all').find_all('td', class_='currency-name')
-    links = []
-    for td in tds:
-        a = td.find('a', class_='currency-name-container').get('href')
-        link = 'https://coinmarketcap.com' + a
-        links.append(link)
-    return links
+# def main():
+#     pass
 
 
-def text_before_word(text, word):
-    line = text.split(word)[0].strip()
-    return line
-
-
-def get_page_data(html):
-    soup = BeautifulSoup(html, 'lxml')
-    try:
-        name = text_before_word(soup.find('title').text, 'price')
-    except:
-        name = ''
-    try:
-        price = text_before_word(soup.find('div', 
-class_='col-xs-6 col-sm-8 col-md-4 text-left').text, 'USD')
-    except:
-        price = ''
-    data = {'name': name,
-            'price': price}
-    return data
-
-
-def write_csv(i, data):
-    with open('coinmarketcap.csv', 'a') as f:
-        writer = csv.writer(f)
-        writer.writerow((data['name'],
-                         data['price']))
-        print(i, data['name'], 'parsed')
-
-
-def main():
-    start = datetime.now()
-    url = 'https://www.marvel.com/characters'
-    all_links = get_all_links(get_html(url))
-    for i, link in enumerate(all_links):
-        html = get_html(link)
-        data = get_page_data(html)
-        write_csv(i, data)
-    end = datetime.now()
-    total = end - start
-    print(str(total))
-    a = input()
-
-
-main()
+# main()
