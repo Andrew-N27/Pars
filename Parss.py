@@ -1,93 +1,59 @@
-# scraper.py
-import csv
-from datetime import datetime
 import requests
+import json
+import csv
+import os
+
 from bs4 import BeautifulSoup
-from requests.api import head
 
-# url = 'https://quotes.toscrape.com/'
-# response = requests.get(url)
-# soup = BeautifulSoup(response.text, 'lxml')
+os.system('mkdir heros_csv')
+os.system('mkdir heros_json')
 
-# print(soup)
-
-
-URL = 'https://www.marvel.com/characters'
+URL = 'https://www.marvel.com/v1/pagination/grid_cards?offset=0&limit=36&entityType=character&sortField=title&sortDirection=asc'#'https://www.marvel.com/v1/pagination/grid_cards?offset=36&limit=36&entityType=character&sortField=title&sortDirection=asc'
 HEADERS = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36'
     }
 
-def get_articles_urls():
-    with requests.Session() as session:
-        session = requests.Session()
+def get_json(url):
+    response = requests.get(url)
+    return response.json()['data']['results']['data']
 
-    response = session.get(url = URL, headers = HEADERS)
-    #response = requests.get(URL, headers = HEADERS)
-    with open('index.html', 'w', encoding='utf-8') as file:
-        file.write(response.text)
+data = get_json(URL)
 
-def parse():
-    URL = 'https://www.marvel.com/characters'
-    HEADERS = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36'
-    }
-    
-    response = requests.get(URL, headers = HEADERS)
+def parse(url):
+    response = requests.get(url, headers = HEADERS)
     soup = BeautifulSoup(response.content, 'lxml')
-    items = soup.findAll('div', class_ = 'mvl-card mvl-card--explore')
-    #items = items.findAll() #mvl-card mvl-card--explore
-    comps = []
-    cout = 0
+    items = soup.findAll('li', class_ = 'railBioInfo__Item')
+    comps = {}
+    
     for item in items:
-        comps.append({                      # card-body__headline
-            'name': item.find('p', class_ = 'card-body__headline').get_text(strip = True),
-            'link': 'https://www.marvel.com' + item.find('a', class_ = 'explore__link').get('href')
-        })
-        cout += 1
-    print(cout)
-    cout = 0
-    for comp in comps:
-        print(comp['name'], '-->' , '\t', comp['link'])
-        cout += 1
-    
-    print(cout)
+        key = item.find('p', class_ = 'railBioInfoItem__label').get_text(strip = True)
+        comps[key] = item.find('li').get_text(strip = True)
 
-def get_text_from_html():
-    with open('index.html', encoding='utf-8') as file:
-        src = file.read()
-    
-    soup = BeautifulSoup(src, 'lxml')
+    return comps
 
-    items = soup.findAll('p', class_ = 'card-body__headline')#'div', class_ = 'mvl-card mvl-card--explore'
-    #items = items.findAll() #mvl-card mvl-card--explore
-    comps = []
-    cout = 0
-    for item in items:
-        comps.append({                      # card-body__headline
-            'name': item.text.strip()
-            #'name': item.find('p', class_ = 'card-body__headline').get_text(strip = True),
-            #'link': 'https://www.marvel.com' + item.find('a', class_ = 'explore__link').get('href')
-        })
-        cout += 1
-    print(cout)
-    cout = 0
-    for comp in comps:
-        print(comp['name'])
-        cout += 1
-    
-    print(cout)
+heros = []
 
-get_text_from_html()
+for i in range(0, 36):
+    hero = {}
+    hero['name'] = data[i]['link']['title']
+    hero['link'] = 'https://www.marvel.com' + data[i]['link']['link']
+    hero = hero | parse(hero['link'])
+    heros.append(hero)
 
-#parse()
+for hero in heros:
+    with open(f"heros_csv/{hero['name']}.csv", "w", newline="") as file:
+        writer = csv.writer(file)
 
-#get_articles_urls()
+        for key, value in hero.items():
+            writer.writerow([key, value])
 
+print("CSV file - Done")
 
-# def main():
-#     pass
+for hero in heros:
+    heros_json = json.dumps(hero)  
+    with open(f"heros_json/{hero['name']}.json", "w") as my_file:
+        my_file.write(heros_json)
 
+print("JSON file - Done")
 
-# main()
